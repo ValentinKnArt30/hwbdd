@@ -3,7 +3,8 @@ package ru.netology.autounit.data;
 import lombok.Value;
 
 public class DataHelper {
-    private DataHelper() {}
+    private DataHelper() {
+    }
 
     @Value
     public static class AuthInfo {
