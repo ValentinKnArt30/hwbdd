@@ -1,70 +1,81 @@
 package ru.netology.autounit.test;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import ru.netology.autounit.data.DataHelper;
+import ru.netology.autounit.page.DashboardPage;
 import ru.netology.autounit.page.LoginPage;
 
 import static com.codeborne.selenide.Selenide.open;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class MoneyTransferTest {
+public class MoneyTransferTest {
 
-    @Test
-    void shouldTransferMoneyBetweenOwnCards() {
+    private DashboardPage dashboard;
+    private DataHelper.CardInfo firstCard;
+    private DataHelper.CardInfo secondCard;
+
+    @BeforeEach
+    void setUp() {
         open("http://localhost:9999");
-
         var loginPage = new LoginPage();
         var authInfo = DataHelper.getAuthInfo();
         var verificationPage = loginPage.validLogin(authInfo);
-        var dashboard = verificationPage.validVerify(DataHelper.getVerificationCodeFor(authInfo));
+        dashboard = verificationPage.validVerify(DataHelper.getVerificationCodeFor(authInfo));
 
-        var firstCard = DataHelper.getFirstCard();
-        var secondCard = DataHelper.getSecondCard();
+        firstCard = DataHelper.getFirstCard();
+        secondCard = DataHelper.getSecondCard();
+    }
 
-        int firstCardBalanceBefore = dashboard.getCardBalance(firstCard);
-        int secondCardBalanceBefore = dashboard.getCardBalance(secondCard);
+    @Test
+    void shouldTransferMoneyBetweenOwnCards() {
+        int firstBefore = dashboard.getCardBalance(firstCard);
+        int secondBefore = dashboard.getCardBalance(secondCard);
 
+        int amount = firstBefore / 2;
         var transferPage = dashboard.selectCardToTopUp(secondCard);
-        int amount = firstCardBalanceBefore / 2;
-        dashboard = transferPage.transfer(firstCard, amount);
+        dashboard = transferPage.validTransfer(firstCard, amount);
+
+        int firstAfter = dashboard.getCardBalance(firstCard);
+        int secondAfter = dashboard.getCardBalance(secondCard);
+
+        assertEquals(firstBefore - amount, firstAfter);
+        assertEquals(secondBefore + amount, secondAfter);
     }
 
     @Test
     void shouldNotAllowTransferMoreThanBalance() {
-        open("http://localhost:9999");
+        int firstBefore = dashboard.getCardBalance(firstCard);
+        int secondBefore = dashboard.getCardBalance(secondCard);
 
-        var loginPage = new LoginPage();
-        var authInfo = DataHelper.getAuthInfo();
-        var verificationPage = loginPage.validLogin(authInfo);
-        var dashboard = verificationPage.validVerify(DataHelper.getVerificationCodeFor(authInfo));
-
-        var firstCard = DataHelper.getFirstCard();
-        var secondCard = DataHelper.getSecondCard();
-
-        int firstCardBalance = dashboard.getCardBalance(firstCard);
-
+        int amount = firstBefore + 1000; // больше, чем баланс
         var transferPage = dashboard.selectCardToTopUp(secondCard);
-        int amount = firstCardBalance + 1000;
-
         transferPage.transfer(firstCard, amount);
+
+        transferPage.shouldShowError("Ошибка!");
+
+        int firstAfter = dashboard.getCardBalance(firstCard);
+        int secondAfter = dashboard.getCardBalance(secondCard);
+
+        assertEquals(firstBefore, firstAfter);
+        assertEquals(secondBefore, secondAfter);
     }
 
     @Test
     void shouldNotAllowTransferToSameCard() {
-        open("http://localhost:9999");
+        int firstBefore = dashboard.getCardBalance(firstCard);
+        int secondBefore = dashboard.getCardBalance(secondCard);
 
-        var loginPage = new LoginPage();
-        var authInfo = DataHelper.getAuthInfo();
-        var verificationPage = loginPage.validLogin(authInfo);
-        var dashboard = verificationPage.validVerify(DataHelper.getVerificationCodeFor(authInfo));
-
-        var firstCard = DataHelper.getFirstCard();
-
+        int amount = firstBefore / 2;
         var transferPage = dashboard.selectCardToTopUp(firstCard);
-        int amount = 500;
-
         transferPage.transfer(firstCard, amount);
-        int firstCardBalanceAfter = dashboard.getCardBalance(firstCard);
-        assertEquals(dashboard.getCardBalance(firstCard), firstCardBalanceAfter);
+
+        transferPage.shouldShowError("Ошибка!");
+
+        int firstAfter = dashboard.getCardBalance(firstCard);
+        int secondAfter = dashboard.getCardBalance(secondCard);
+
+        assertEquals(firstBefore, firstAfter);
+        assertEquals(secondBefore, secondAfter);
     }
 }
